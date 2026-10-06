@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idea Generator</title>
+<style>
+  :root{--bg:#fff;--fg:#37352f;--muted:#787774;--line:#e9e9e7;--accent:#2383e2;--card:#f7f6f3}
+  @media (prefers-color-scheme:dark){:root{--bg:#191919;--fg:#e6e6e4;--muted:#9b9a97;--line:#2f2f2f;--accent:#529cca;--card:#252525}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px;font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,sans-serif;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:520px;margin:0 auto}
+  .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .row{display:flex;gap:8px;margin:6px 0 16px}
+  select,input,button{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);color:var(--fg)}
+  select,input{flex:1;min-width:0}
+  button{cursor:pointer}
+  button:hover{background:var(--card)}
+  .primary{width:100%;padding:10px;font-weight:600;background:var(--accent);border-color:var(--accent);color:#fff}
+  .primary:hover{background:var(--accent);opacity:.9}
+  .editor{display:none;margin:-6px 0 16px;padding:12px;border:1px dashed var(--line);border-radius:8px}
+  .editor.show{display:block}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .chip{display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px}
+  .chip button{border:0;background:none;padding:0 6px;color:var(--muted);font-size:15px;line-height:1}
+  .result{display:none;margin-top:16px;padding:6px 16px;border-radius:8px;background:var(--card)}
+  .result.show{display:block}
+  .line{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .line:last-child{border:0}
+  .line .label{width:64px;flex-shrink:0}
+  .line b{flex:1;font-size:17px;font-weight:600}
+  .reroll{border:0;background:none;color:var(--muted);padding:2px 6px;font-size:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">Medium</div>
+  <div class="row">
+    <select id="medium"></select>
+    <button id="toggleEdit" title="Edit mediums">✎ Edit</button>
+  </div>
+
+  <div class="editor" id="editor">
+    <div class="chips" id="chips"></div>
+    <div class="row" style="margin:0">
+      <input id="newMedium" placeholder="Add a medium…">
+      <button id="addMedium">Add</button>
+    </div>
+  </div>
+
+  <button class="primary" id="generate">Generate idea</button>
+
+  <div class="result" id="result">
+    <div class="line"><span class="label">Medium</span><b id="r-medium"></b></div>
+    <div class="line"><span class="label">Subject</span><b id="r-subject"></b><button class="reroll" data-k="subject" title="Reroll">↻</button></div>
+    <div class="line"><span class="label">Mood</span><b id="r-mood"></b><button class="reroll" data-k="mood" title="Reroll">↻</button></div>
+  </div>
+</div>
+
+<script>
+// ── Edit these lists ─────────────────────────────
+const DEFAULT_MEDIUMS = ["Embroidery","Sewing","Quilting","Watercolor","Digital illustration","Photography","Short video","Collage","Printmaking","Animation"];
+const SUBJECTS = ["A forgotten garden","Your morning routine","A childhood toy","Moths","A city at 3am","Tide pools","Grandma's kitchen","A secret door","Weather you love","Mushrooms","A letter never sent","Neon signs","Bees","An empty chair","Road trip snacks","A favorite song","Old maps","Houseplants","A storm rolling in","Something you lost","Folk tales","Bicycles","Teacups","A self-portrait as an object","Wildflowers","Train stations","Your pet's daydream","Constellations","Fruit at a market","A door you walk past daily"];
+const MOODS = ["Nostalgic","Playful","Eerie","Serene","Chaotic","Tender","Bold","Melancholy","Whimsical","Cozy","Defiant","Dreamy","Hopeful","Restless","Mysterious","Joyful","Quiet","Bittersweet","Electric","Reverent"];
+// ─────────────────────────────────────────────────
+
+const KEY = "ideaGen.mediums";
+const $ = id => document.getElementById(id);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let mediums = (() => {
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s) && s.length) return s; } catch(e) {}
+  return [...DEFAULT_MEDIUMS];
+})();
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mediums)); } catch(e) {} };
+
+function render() {
+  const cur = $("medium").value;
+  $("medium").innerHTML = '<option value="">🎲 Surprise me</option>' +
+    mediums.map(m => `<option>${esc(m)}</option>`).join("");
+  if (mediums.includes(cur)) $("medium").value = cur;
+  $("chips").innerHTML = mediums.map((m, i) =>
+    `<span class="chip">${esc(m)}<button data-i="${i}" title="Remove">×</button></span>`).join("");
+}
+
+function roll(k) {
+  const val = k === "medium" ? ($("medium").value || pick(mediums))
+            : k === "subject" ? pick(SUBJECTS) : pick(MOODS);
+  $("r-" + k).textContent = val;
+}
+
+$("generate").onclick = () => { ["medium","subject","mood"].forEach(roll); $("result").classList.add("show"); };
+document.querySelectorAll(".reroll").forEach(b => b.onclick = () => roll(b.dataset.k));
+$("toggleEdit").onclick = () => $("editor").classList.toggle("show");
+
+function add() {
+  const v = $("newMedium").value.trim();
+  if (v && !mediums.includes(v)) { mediums.push(v); save(); render(); }
+  $("newMedium").value = "";
+}
+$("addMedium").onclick = add;
+$("newMedium").onkeydown = e => { if (e.key === "Enter") add(); };
+$("chips").onclick = e => {
+  const i = e.target.dataset.i;
+  if (i === undefined || mediums.length <= 1) return;
+  mediums.splice(+i, 1); save(); render();
+};
+
+render();
+</script>
+</body>
+</html>
